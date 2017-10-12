@@ -7,6 +7,6 @@ The (only) resource I found: https://www.elektroda.pl/rtvforum/topic2689981.html
 
 Signals measured. Found TX, GND and RX signal. Signal are supposed to be kinda RS232, inverted, 9k6, 8bit no parity 1.5stop. Let's make the convertor to standard levels first ...
 
-![fetcher - idea](/fetcher_schematic.jpg)
+![fetcher - idea](/fetcher_schematic.png)
 
 
