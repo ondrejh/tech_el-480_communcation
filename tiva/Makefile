@@ -116,5 +116,8 @@ ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${COMPILER}/*.d} __dummy__
 endif
 
+program:
+	openocd -f /usr/share/openocd/scripts/board/ek-lm4f120xl.cfg -c "program ./gcc/${TARGET_NAME}.axf verify reset"
+
 program_win:
 	openocd -s "C:/Program Files/OpenOCD/scripts" -f board/ek-lm4f120xl.cfg -c "adapter_khz 100" -c "program ./gcc/${TARGET_NAME}.axf verify reset exit"

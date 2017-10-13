@@ -2,7 +2,7 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="section" />
+		<Option title="project" />
 		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
@@ -24,6 +24,7 @@
 			<Add option="-Wall" />
 		</Compiler>
 		<Unit filename="Makefile" />
+		<Unit filename="includes.h" />
 		<Unit filename="project.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -31,6 +32,10 @@
 		<Unit filename="startup_gcc.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="timer.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="timer.h" />
 		<Extensions>
 			<code_completion />
 			<envvars />
