@@ -60,8 +60,20 @@ void uart_input2_init(void)
 void uart_write(uint8_t *buf, int dlen)
 {
     int i;
-    for (i=0;i<dlen;i++)
+    for (i=0;i<dlen;i++) {
+        if (!ROM_UARTSpaceAvail(UART0_BASE))
+            break;
         ROM_UARTCharPut(UART0_BASE,(uint8_t)*buf++);
+    }
+}
+
+void uart_printf(char *buf) {
+    while (ROM_UARTSpaceAvail(UART0_BASE)) {
+        char c = *buf++;
+        if (c=='\0')
+            break;
+        ROM_UARTCharPut(UART0_BASE, c);
+    }
 }
 
 void uart_write_hex(uint32_t val,int len)
@@ -112,6 +124,9 @@ void init_board(void)
 
     ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE,GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
     ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3,0x00);
+
+    ROM_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE,GPIO_PIN_4);
+    ROM_GPIOPinTypeGPIOInput(GPIO_PORTA_BASE,GPIO_PIN_3);
 }
 
 //*****************************************************************************
@@ -131,10 +146,14 @@ int main(void)
     int lastRx = 0;
     int cnt = 0;
 
+    //uart_printf("ahoj\n\r");
+
     // Loop forever.
     while(1) {
         g_loop_ms = millis();
         g_loop_us = micros();
+
+        ROM_GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,ROM_GPIOPinRead(GPIO_PORTA_BASE,GPIO_PIN_3)?0:GPIO_PIN_4);
 
         if (UART1_AVAIL) {
             if (lastRx!=1) {
