@@ -54,7 +54,8 @@ SIZE_CMD=arm-none-eabi-size
 #
 #ROOT=../../../..
 #ROOT=D:/Projekty/TivaWare_C_Series-2.1.3.156
-ROOT=D:/Projekty/TivaWare_C_Series-2.1.4.178
+#ROOT=D:/Projekty/TivaWare_C_Series-2.1.4.178
+ROOT=/home/ondrej/Projekty/__TivaWare__
 
 #
 # Include the common make definitions.
