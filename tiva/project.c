@@ -12,7 +12,23 @@
 #define LED_GREEN_OFF() do{ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,0);}while(0)
 #define LED_GREEN_SWAP() do{ROM_GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_3,ROM_GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_3)^GPIO_PIN_3);}while(0)
 
+#define OUTBUFLEN 256
+uint8_t outbuf[OUTBUFLEN];
+int outbptri = 0, outbptro = 0;
+
 uint32_t g_ui32SysClock;
+
+void uart_output_poll(void)
+{
+    if (outbptri!=outbptro) {
+        if (!ROM_UARTSpaceAvail(UART0_BASE))
+            return;
+        uint8_t c;
+        c = outbuf[outbptro++];
+        ROM_UARTCharPut(UART0_BASE,c);
+        outbptro%=OUTBUFLEN;
+    }
+}
 
 void uart_output_init(void)
 {
@@ -57,22 +73,32 @@ void uart_input2_init(void)
 #define UART1_GETC() (UARTCharGet(UART1_BASE))
 #define UART2_GETC() (UARTCharGet(UART2_BASE))
 
+void uart_putc(uint8_t c)
+{
+    outbuf[outbptri++] = c;
+    outbptri%=OUTBUFLEN;
+}
+
 void uart_write(uint8_t *buf, int dlen)
 {
     int i;
     for (i=0;i<dlen;i++) {
-        if (!ROM_UARTSpaceAvail(UART0_BASE))
+        uart_putc((uint8_t)*buf++);
+        /*if (!ROM_UARTSpaceAvail(UART0_BASE))
             break;
-        ROM_UARTCharPut(UART0_BASE,(uint8_t)*buf++);
+        ROM_UARTCharPut(UART0_BASE,(uint8_t)*buf++);*/
     }
 }
 
-void uart_printf(char *buf) {
-    while (ROM_UARTSpaceAvail(UART0_BASE)) {
+void uart_printf(char *buf)
+{
+    while (1) {
+    //while (ROM_UARTSpaceAvail(UART0_BASE)) {
         char c = *buf++;
         if (c=='\0')
             break;
-        ROM_UARTCharPut(UART0_BASE, c);
+        uart_putc(c);
+        //ROM_UARTCharPut(UART0_BASE, c);
     }
 }
 
@@ -154,6 +180,8 @@ int main(void)
         g_loop_us = micros();
 
         ROM_GPIOPinWrite(GPIO_PORTA_BASE,GPIO_PIN_4,ROM_GPIOPinRead(GPIO_PORTA_BASE,GPIO_PIN_3)?0:GPIO_PIN_4);
+
+        uart_output_poll();
 
         if (UART1_AVAIL) {
             if (lastRx!=1) {
