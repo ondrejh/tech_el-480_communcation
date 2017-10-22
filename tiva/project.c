@@ -20,6 +20,8 @@
 #define OUTBUFLEN 256
 #define INBUFLEN 256
 
+#define MSG_TIMEOUT ((50*1000000)/9600)
+
 
 void uart_printf(char *buf);
 void uart_write_hex(uint32_t val,int len);
@@ -63,7 +65,7 @@ void uart_input1_poll(void)
     }
     else {
         if (busy1) {
-            if ((g_loop_us-t_last1)>((20*1000000)/9600)) { // end of rx detected
+            if ((g_loop_us-t_last1)>MSG_TIMEOUT) { // end of rx detected
                 uart_write_hex(t_start1,4);
                 uart_printf(" U1:");
                 int cnt = 0;
@@ -96,7 +98,7 @@ void uart_input2_poll(void)
     }
     else {
         if (busy2) {
-            if ((g_loop_us-t_last2)>((20*1000000)/9600)) { // end of rx detected
+            if ((g_loop_us-t_last2)>MSG_TIMEOUT) { // end of rx detected
                 uart_write_hex(t_start2,4);
                 uart_printf(" U2:");
                 uart_printf(" (");
