@@ -17,8 +17,8 @@
 #define UART1_GETC() (UARTCharGet(UART1_BASE))
 #define UART2_GETC() (UARTCharGet(UART2_BASE))
 
-#define OUTBUFLEN 256
-#define INBUFLEN 256
+#define OUTBUFLEN 1024
+#define INBUFLEN 1024
 
 #define MSG_TIMEOUT ((50*1000000)/9600)
 
@@ -28,7 +28,7 @@ void uart_write_hex(uint32_t val,int len);
 void uart_write_int(uint32_t val);
 
 uint8_t outbuf[OUTBUFLEN];
-int outbptri = 0, outbptro = 0;
+uint32_t outbptri = 0, outbptro = 0;
 
 uint8_t inbuf1[INBUFLEN], inbuf2[INBUFLEN];
 uint32_t inbptri1 = 0, inbptri2 = 0, inbptro1 = 0, inbptro2 = 0;
