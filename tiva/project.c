@@ -67,7 +67,10 @@ void uart_input1_poll(void)
         if (busy1) {
             if ((g_loop_us-t_last1)>MSG_TIMEOUT) { // end of rx detected
                 uart_write_hex(t_start1,4);
-                uart_printf(" U1:");
+                uart_printf(" U1");
+                uart_printf(" (");
+                uart_write_int((inbptri1-inbptro1)%INBUFLEN);
+                uart_printf("):");
                 int cnt = 0;
                 while (inbptri1!=inbptro1) {
                     if ((cnt++&0x01)==0)
@@ -100,10 +103,10 @@ void uart_input2_poll(void)
         if (busy2) {
             if ((g_loop_us-t_last2)>MSG_TIMEOUT) { // end of rx detected
                 uart_write_hex(t_start2,4);
-                uart_printf(" U2:");
+                uart_printf(" U2");
                 uart_printf(" (");
                 uart_write_int((inbptri2-inbptro2)%INBUFLEN);
-                uart_printf(")");
+                uart_printf("):");
                 int cnt = 0;
                 while (inbptri2!=inbptro2) {
                     if ((cnt++&0x01)==0)
