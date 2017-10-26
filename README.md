@@ -9,4 +9,8 @@ Signals measured. Found TX, GND and RX signal. Signal are supposed to be kinda R
 
 ![fetcher - idea](/fetcher_schematic.png)
 
+Well, the schematic needs some improvements. One of the signals is inverted (probably the one comming from ethernet module). I'm solving it with "SW inverter" on the launchpad - not perfect. Don't belive the data comming form enet module.
 
+Nevermind, I've writen simple mqtt client throwing data into broaker. Than I've build simple app to get those "raw" data and show it. It also highlights the changes. Here you are:
+
+![spy app](/firstapp.png)
