@@ -74,6 +74,7 @@ class app_client():
         self.frames = []
         self.values = []
         self.val_labels = []
+        self.column_types = []
 
         self.cnt = 0
         self.empty = 0
@@ -93,14 +94,17 @@ class app_client():
         val_lab.grid(row=0, column=1, sticky=W+E, padx=1, pady=3)
         Grid.columnconfigure(frm, 1, weight=1)
         cnt = 1
+        types = []
         for i in range(len(keys)):
             key = keys[i]
             var = vals[i]
+            types.append(0)
             name_label = Label(frm, text='{0} ({0:04X})'.format(key))
             name_label.grid(row=cnt, column=0, padx=3, pady=1, sticky=W+E)
             values.append(var)
             val_label = Label(frm, text='{}'.format(var), style="Red.TLabel")
             val_label.grid(row=cnt, column=1, padx=3, pady=1, sticky=W+E)
+            val_label.bind('<Button-1>', lambda e,x=self.cnt-1, y=cnt-1: self.change_type(x, y))
             labels.append(val_label)
             cnt += 1
         frm.pack(side=LEFT, expand=1, fill=Y, padx=10 if len(self.frame_types) & 1 else 0)
@@ -108,9 +112,39 @@ class app_client():
         self.frames.append(frm)
         self.values.append(values)
         self.val_labels.append(labels)
+        self.column_types.append(types)
+
+    def change_type(self, x, y):
+        #print('Item {},{}'.format(x+1, y+1))# .. {}'.format(x+1, y+1, self.frames[x][y]))
+        thistype = self.column_types[x][y]
+        nexttype = (thistype + 1)%5
+        #print('Change type {} -> {}'.format(thistype, nexttype))
+        self.column_types[x][y] = nexttype
+        self.show_value(x,y)
+
+    def show_value(self, x, y):
+        try:
+            val = self.values[x][y]
+            typ = self.column_types[x][y]
+            if typ == 1:
+                strval = '{:0.1f}°C'.format(val/10)
+            elif typ == 2:
+                strval = '{}°C'.format(val)
+            elif typ == 3:
+                strval = '{}%'.format(val)
+            elif typ == 4:
+                valH = val >> 8
+                valL = val & 0xFF
+                strval = '{} / {}'.format(valL, valH)
+            else:
+                strval = str(self.values[x][y])
+            self.val_labels[x][y].config(text='{}'.format(strval))
+        except IndexError:
+            pass
 
     def get_frame(self, frame):
         try:
+        #if True:
             if frame == []:
                 self.empty += 1
                 self.empty %= 2
@@ -124,7 +158,8 @@ class app_client():
                             for j in range(len(values)):
                                 if self.values[i][j] != values[j]:
                                     self.values[i][j] = values[j]
-                                    self.val_labels[i][j].config(text='{}'.format(values[j]))
+                                    self.show_value(i, j)
+                                    #self.val_labels[i][j].config(text='{}'.format(values[j]))
                                     self.val_labels[i][j].config(style="Red.TLabel")
                                 else:
                                     self.val_labels[i][j].config(style='White.TLabel')
