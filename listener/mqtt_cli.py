@@ -3,6 +3,8 @@
 from tkinter import *
 from tkinter.ttk import *
 
+from lxml.etree import parse, Element, SubElement, Comment, tostring
+
 from threading import Thread
 
 from time import sleep
@@ -79,6 +81,8 @@ class app_client():
         self.cnt = 0
         self.empty = 0
 
+        self.load_data()
+
         self.mqttThread = mqtt_thread(self.get_frame)
         self.mqttThread.start()
 
@@ -117,10 +121,10 @@ class app_client():
     def change_type(self, x, y):
         #print('Item {},{}'.format(x+1, y+1))# .. {}'.format(x+1, y+1, self.frames[x][y]))
         thistype = self.column_types[x][y]
-        nexttype = (thistype + 1)%5
+        nexttype = (thistype + 1) % 6
         #print('Change type {} -> {}'.format(thistype, nexttype))
         self.column_types[x][y] = nexttype
-        self.show_value(x,y)
+        self.show_value(x, y)
 
     def show_value(self, x, y):
         try:
@@ -136,8 +140,11 @@ class app_client():
                 valH = val >> 8
                 valL = val & 0xFF
                 strval = '{} / {}'.format(valL, valH)
+            elif typ == 5:
+                strval = '{}h'.format(val)
             else:
                 strval = str(self.values[x][y])
+                self.column_types[x][y] = 0
             self.val_labels[x][y].config(text='{}'.format(strval))
         except IndexError:
             pass
@@ -166,8 +173,53 @@ class app_client():
         except:
             pass
 
+    def load_data(self):
+        top = parse('config.xml').getroot()
+        frms = top.findall('frame')
+        fcnt = 0
+        for f in frms:
+            #print(f.get('name'))
+            itms = f.findall('item')
+            keys = []
+            values = []
+            types = []
+            icnt = 0
+            for i in itms:
+                #print(i.get('id'))
+                keys.append(int(i.get('id').split('x')[1], 16))
+                values.append(int(i.get('value')))
+                types.append(int(i.get('type')))
+            self.create_frame(keys, values)
+            self.column_types[fcnt] = types
+            for i in itms:
+                self.show_value(fcnt, icnt)
+                icnt += 1
+            fcnt += 1
+        pass
+
+    def save_data(self):
+        top = Element('ST-480')
+        # table of types
+        child = SubElement(top, 'types')
+        SubElement(child, 'type', id='0', name='unknown')
+        SubElement(child, 'type', id='1', name='temperature 1d')
+        SubElement(child, 'type', id='2', name='temperature')
+        SubElement(child, 'type', id='3', name='percent')
+        SubElement(child, 'type', id='4', name='min / max')
+        SubElement(child, 'type', id='5', name='hours')
+        # fames
+        for x in range(len(self.frames)):
+            child = SubElement(top, 'frame', name=self.frames[x]['text'])
+            for y in range(len(self.frame_types[x])):
+                subchild = SubElement(child, 'item', id='0x{:04X}'.format(self.frame_types[x][y]),
+                                      value='{}'.format(self.values[x][y]), type='{}'.format(self.column_types[x][y]))
+        f = open('config.xml', 'wb')
+        f.write(tostring(top, pretty_print=True))
+        f.close()
+
     def on_close(self):
         self.mqttThread.stop = True
+        self.save_data()
         self.mqttThread.join(1.0)
         self.root.destroy()
 
