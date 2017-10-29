@@ -121,7 +121,7 @@ class app_client():
     def change_type(self, x, y):
         #print('Item {},{}'.format(x+1, y+1))# .. {}'.format(x+1, y+1, self.frames[x][y]))
         thistype = self.column_types[x][y]
-        nexttype = (thistype + 1) % 6
+        nexttype = (thistype + 1) % 7
         #print('Change type {} -> {}'.format(thistype, nexttype))
         self.column_types[x][y] = nexttype
         self.show_value(x, y)
@@ -142,6 +142,10 @@ class app_client():
                 strval = '{} / {}'.format(valL, valH)
             elif typ == 5:
                 strval = '{}h'.format(val)
+            elif typ == 6:  # clock
+                valH = val >> 8
+                valL = val & 0xFF
+                strval = '{}:{:02}'.format(valH, valL)
             else:
                 strval = str(self.values[x][y])
                 self.column_types[x][y] = 0
@@ -207,6 +211,7 @@ class app_client():
         SubElement(child, 'type', id='3', name='percent')
         SubElement(child, 'type', id='4', name='min / max')
         SubElement(child, 'type', id='5', name='hours')
+        SubElement(child, 'type', id='6', name='clock')
         # fames
         for x in range(len(self.frames)):
             child = SubElement(top, 'frame', name=self.frames[x]['text'])
