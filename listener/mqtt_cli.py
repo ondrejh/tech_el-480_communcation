@@ -18,6 +18,7 @@ MQTT_USER_NAME = "home"
 MQTT_PASSWORD = "home123"
 MQTT_TOPIC = "heating_raw/boiler_data"
 
+week_day = ('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
 
 class mqtt_thread(Thread):
     def __init__(self, send_frame):
@@ -121,7 +122,7 @@ class app_client():
     def change_type(self, x, y):
         #print('Item {},{}'.format(x+1, y+1))# .. {}'.format(x+1, y+1, self.frames[x][y]))
         thistype = self.column_types[x][y]
-        nexttype = (thistype + 1) % 7
+        nexttype = (thistype + 1) % 10
         #print('Change type {} -> {}'.format(thistype, nexttype))
         self.column_types[x][y] = nexttype
         self.show_value(x, y)
@@ -130,22 +131,30 @@ class app_client():
         try:
             val = self.values[x][y]
             typ = self.column_types[x][y]
-            if typ == 1:
+            if typ == 1:  # degrees, 1 decimal
                 strval = '{:0.1f}°C'.format(val/10)
-            elif typ == 2:
+            elif typ == 2:  # degrees
                 strval = '{}°C'.format(val)
-            elif typ == 3:
+            elif typ == 3:  # percent
                 strval = '{}%'.format(val)
-            elif typ == 4:
+            elif typ == 4:  # min / max
                 valH = val >> 8
                 valL = val & 0xFF
                 strval = '{} / {}'.format(valL, valH)
-            elif typ == 5:
+            elif typ == 5:  # hours
                 strval = '{}h'.format(val)
             elif typ == 6:  # clock
                 valH = val >> 8
                 valL = val & 0xFF
                 strval = '{}:{:02}'.format(valH, valL)
+            elif typ == 7:  # on / off
+                strval = 'ON' if val else 'OFF'
+            elif typ == 8:  # fuel % / kg
+                valH = val >> 9
+                valL = val & 0x1FF
+                strval = '{}%, {}kg'.format(valH, valL)
+            elif typ == 9:  # day of week
+                strval = week_day[val % 7]
             else:
                 strval = str(self.values[x][y])
                 self.column_types[x][y] = 0
@@ -212,6 +221,9 @@ class app_client():
         SubElement(child, 'type', id='4', name='min / max')
         SubElement(child, 'type', id='5', name='hours')
         SubElement(child, 'type', id='6', name='clock')
+        SubElement(child, 'type', id='7', name='on / off')
+        SubElement(child, 'type', id='8', name='fuel % / kg')
+        SubElement(child, 'type', id='9', name='day of week')
         # fames
         for x in range(len(self.frames)):
             child = SubElement(top, 'frame', name=self.frames[x]['text'])
