@@ -15,13 +15,13 @@
     <item id="0x169E" type="4" value="20525"/>
     <item id="0x169F" type="4" value="15400"/>
     <item id="0x157C" type="0" value="82"/>
-    <item id="0x157D" type="1" value="750"/>
+    <item id="0x157D" type="1" value="780"/>
     <item id="0x157E" type="2" value="60"/>
     <item id="0x166E" type="1" value="0"/>
     <item id="0x1616" type="2" value="40"/>
-    <item id="0x1681" type="1" value="50"/>
+    <item id="0x1681" type="1" value="0"/>
     <item id="0x15CD" type="0" value="0"/>
-    <item id="0x1620" type="6" value="4104"/>
+    <item id="0x1620" type="6" value="2332"/>
     <item id="0x1621" type="9" value="0"/>
     <item id="0x1589" type="0" value="0"/>
     <item id="0x158B" type="0" value="0"/>
@@ -30,8 +30,8 @@
     <item id="0x16AE" type="0" value="0"/>
     <item id="0x15AB" type="0" value="0"/>
     <item id="0x1587" type="7" value="0"/>
-    <item id="0x1588" type="7" value="1"/>
-    <item id="0x159B" type="3" value="35"/>
+    <item id="0x1588" type="7" value="0"/>
+    <item id="0x159B" type="3" value="0"/>
     <item id="0x01F6" type="0" value="0"/>
     <item id="0x028E" type="0" value="0"/>
     <item id="0x0298" type="0" value="0"/>
@@ -41,18 +41,18 @@
   <frame name="Frame 2">
     <item id="0x16F9" type="0" value="1"/>
     <item id="0x16C2" type="0" value="65521"/>
-    <item id="0x167F" type="0" value="47"/>
+    <item id="0x167F" type="0" value="50"/>
     <item id="0x16C3" type="0" value="25354"/>
-    <item id="0x1614" type="1" value="260"/>
+    <item id="0x1614" type="1" value="300"/>
     <item id="0x1624" type="0" value="1"/>
-    <item id="0x15AC" type="3" value="0"/>
+    <item id="0x15AC" type="3" value="8"/>
     <item id="0x1680" type="0" value="1"/>
     <item id="0x170A" type="0" value="65496"/>
     <item id="0x16F9" type="0" value="0"/>
     <item id="0x15A7" type="0" value="21"/>
     <item id="0x16FF" type="0" value="6"/>
-    <item id="0x16F8" type="1" value="460"/>
-    <item id="0x15B7" type="1" value="670"/>
+    <item id="0x16F8" type="1" value="510"/>
+    <item id="0x15B7" type="1" value="720"/>
     <item id="0x1684" type="0" value="0"/>
   </frame>
   <frame name="Frame 3">
@@ -62,7 +62,7 @@
     <item id="0x16F9" type="0" value="3"/>
     <item id="0x16C2" type="0" value="0"/>
     <item id="0x16F9" type="0" value="0"/>
-    <item id="0x16F1" type="8" value="22528"/>
-    <item id="0x16F2" type="5" value="74"/>
+    <item id="0x16F1" type="8" value="0"/>
+    <item id="0x16F2" type="5" value="0"/>
   </frame>
 </ST-480>

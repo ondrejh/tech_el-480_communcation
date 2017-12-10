@@ -130,9 +130,10 @@ class app_client():
     def show_value(self, x, y):
         try:
             val = self.values[x][y]
+            ival = val if not(val & 0x8000) else val-65536
             typ = self.column_types[x][y]
             if typ == 1:  # degrees, 1 decimal
-                strval = '{:0.1f}°C'.format(val/10)
+                strval = '{:0.1f}°C'.format(ival/10)
             elif typ == 2:  # degrees
                 strval = '{}°C'.format(val)
             elif typ == 3:  # percent
