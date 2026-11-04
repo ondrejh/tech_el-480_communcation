@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kotelna</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f5f3; --panel: #ffffff; --text: #1f2328; --muted: #646b73;
+    --line: #dfe1e4; --warn-bg: #fff1d6; --warn-text: #6b4600; --flash: #fff0b8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17191c; --panel: #212429; --text: #e8e9eb; --muted: #9aa1a9;
+      --line: #363a40; --warn-bg: #4a3710; --warn-text: #ffdf9e; --flash: #5a4a14;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+         font: 16px/1.4 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-bottom: 12px; }
+  h1 { font-size: 24px; margin: 0; }
+  h2 { font-size: 16px; margin: 0 0 8px; }
+  #status { color: var(--muted); font-size: 14px; }
+  #banner { display: none; padding: 10px 12px; margin-bottom: 12px; border-radius: 6px;
+            background: var(--warn-bg); color: var(--warn-text); font-weight: 600; }
+  #groups { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            align-items: start; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+  .row span:first-child { color: var(--muted); }
+  .row span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+  .old { opacity: .45; }
+  .note { color: var(--muted); font-size: 14px; margin: 12px 0; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0; font-size: 14px; }
+  input[type=search] { padding: 6px 8px; font: inherit; min-width: 220px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--panel); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.code { font-family: ui-monospace, monospace; }
+  tr.flash td { background: var(--flash); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Kotelna</h1>
+    <div id="status" role="status">Loading…</div>
+  </header>
+  <div id="banner" role="alert"></div>
+  <div id="groups"></div>
+  <p class="note">Names aren't all checked against the controller's display yet. Read-only: this page can't change anything on the boiler.</p>
+
+  <details>
+    <summary>All values (raw)</summary>
+    <div class="tools">
+      <label for="filter">Filter</label>
+      <input id="filter" type="search" placeholder="ID, name or address">
+      <label><input id="unnamed" type="checkbox"> Unnamed only</label>
+      <label><input id="changing" type="checkbox"> Changed in the last 10 min</label>
+      <span id="count"></span>
+    </div>
+    <div class="panel scroll">
+      <table>
+        <thead><tr>
+          <th>From</th><th>Address</th><th>Sel.</th><th>ID</th><th>Name</th>
+          <th>Hex</th><th>Value</th><th>Signed</th><th>Seen</th><th>Changed</th>
+        </tr></thead>
+        <tbody id="raw"></tbody>
+      </table>
+    </div>
+  </details>
+</main>
+
+<script>
+const REFRESH_MS = 3000;
+const $ = id => document.getElementById(id);
+let latest = null;
+
+function ago(seconds) {
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} h`;
+  return `${(seconds / 86400).toFixed(1)} d`;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function renderReadings(data) {
+  const panels = new Map();
+  const nodes = [];
+  for (const reading of data.readings) {
+    if (!panels.has(reading.group)) {
+      const panel = el('section', 'panel');
+      panel.append(el('h2', '', reading.group));
+      panels.set(reading.group, panel);
+      nodes.push(panel);
+    }
+    const old = reading.age === null || reading.age > data.stale_seconds;
+    const row = el('div', old ? 'row old' : 'row');
+    row.append(el('span', '', reading.label), el('span', '', reading.text ?? '–'));
+    panels.get(reading.group).append(row);
+  }
+  $('groups').replaceChildren(...nodes);
+}
+
+function renderRaw(data) {
+  const query = $('filter').value.trim().toLowerCase();
+  const rows = data.raw.filter(r => {
+    if ($('unnamed').checked && r.name) return false;
+    if ($('changing').checked && r.changed_ago > 600) return false;
+    return !query || `${r.source} ${r.address} ${r.param} ${r.name}`.toLowerCase().includes(query);
+  });
+  $('raw').replaceChildren(...rows.map(r => {
+    const tr = el('tr', r.changed_ago < 10 ? 'flash' : '');
+    tr.append(
+      el('td', '', r.source), el('td', 'code', r.address), el('td', 'num', r.selector),
+      el('td', 'code', r.param), el('td', '', r.name), el('td', 'code', r.hex),
+      el('td', 'num', r.value), el('td', 'num', r.signed),
+      el('td', 'num', ago(r.age)), el('td', 'num', ago(r.changed_ago)));
+    return tr;
+  }));
+  $('count').textContent = `${rows.length} of ${data.raw.length}`;
+}
+
+function renderStatus(data) {
+  const t = data.totals;
+  const ok = (t.ok_U1 || 0) + (t.ok_U2 || 0);
+  const bad = Object.entries(t).filter(([k]) => !k.startsWith('ok_')).reduce((sum, [, n]) => sum + n, 0);
+  const age = data.last_frame_age;
+  $('status').textContent = (age === null ? 'No frames yet' : `Last frame ${ago(age)} ago`) +
+    ` · ${ok} good, ${bad} rejected since start`;
+  const stale = age === null || age > data.stale_seconds;
+  $('banner').style.display = stale ? 'block' : 'none';
+  if (stale) {
+    $('banner').textContent = age === null
+      ? 'No data from the boiler yet. Check the sniffer connection.'
+      : `No data from the boiler for ${ago(age)}. These values may be out of date.`;
+  }
+}
+
+function render() {
+  if (!latest) return;
+  renderStatus(latest);
+  renderReadings(latest);
+  renderRaw(latest);
+}
+
+async function refresh() {
+  try {
+    const response = await fetch('/api/values', {cache: 'no-store'});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    latest = await response.json();
+    render();
+  } catch (error) {
+    $('banner').style.display = 'block';
+    $('banner').textContent = `Can't reach the server (${error.message}). These values may be out of date.`;
+  }
+}
+
+for (const id of ['filter', 'unnamed', 'changing']) {
+  $(id).addEventListener('input', () => latest && renderRaw(latest));
+}
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>

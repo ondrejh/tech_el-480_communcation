@@ -5,6 +5,7 @@ wear. A power cut can lose up to one flush interval of data.
 """
 
 import sqlite3
+import threading
 from collections import Counter
 
 SCHEMA = """
@@ -60,25 +61,39 @@ class Store:
         self.dirty = set()
         self.changes = []
         self.stats = Counter()
+        self.totals = Counter()
+        self.last_frame = None
+        # The web server reads the current values from another thread.
+        self.lock = threading.RLock()
 
     def record_frame(self, frame, ts):
-        self.count(f"ok_{frame.source}", ts)
-        for selector, param, value in frame.values:
-            key = (frame.source, frame.address, selector, param)
-            entry = self.current.get(key)
-            if entry is None:
-                self.current[key] = [value, ts, ts, ts]
-                self.changes.append((ts, *key, value))
-            else:
-                if entry[0] != value:
-                    entry[0] = value
-                    entry[3] = ts
+        with self.lock:
+            self.count(f"ok_{frame.source}", ts)
+            self.last_frame = ts
+            for selector, param, value in frame.values:
+                key = (frame.source, frame.address, selector, param)
+                entry = self.current.get(key)
+                if entry is None:
+                    self.current[key] = [value, ts, ts, ts]
                     self.changes.append((ts, *key, value))
-                entry[2] = ts
-            self.dirty.add(key)
+                else:
+                    if entry[0] != value:
+                        entry[0] = value
+                        entry[3] = ts
+                        self.changes.append((ts, *key, value))
+                    entry[2] = ts
+                self.dirty.add(key)
 
     def count(self, kind, ts):
-        self.stats[(int(ts // 3600) * 3600, kind)] += 1
+        with self.lock:
+            self.stats[(int(ts // 3600) * 3600, kind)] += 1
+            self.totals[kind] += 1
+
+    def snapshot(self):
+        """Return a consistent copy of the live state: (values, totals, last_frame)."""
+        with self.lock:
+            values = {key: tuple(entry) for key, entry in self.current.items()}
+            return values, dict(self.totals), self.last_frame
 
     def flush(self):
         with self.db:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read the sniffer's serial output and store validated values in SQLite."""
+"""Read the sniffer's serial output, store validated values in SQLite and serve them."""
 
 import argparse
 import fcntl
@@ -13,6 +13,7 @@ import tty
 
 from protocol import FrameError, parse_line
 from store import Store
+from web import start_web_server
 
 MAX_LINE_BYTES = 8192
 RECONNECT_SECONDS = 5
@@ -76,6 +77,7 @@ def main():
     parser.add_argument("--db", default="kotelna.db")
     parser.add_argument("--flush-interval", type=float, default=60.0,
                         help="seconds between database writes")
+    parser.add_argument("--web-port", type=int, default=8080)
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -85,6 +87,8 @@ def main():
         signal.signal(sig, lambda *_: stop.append(True))
 
     store = Store(args.db)
+    start_web_server(store, args.web_port)
+    log.info("web page on port %d", args.web_port)
     try:
         while not stop:
             try:

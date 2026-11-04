@@ -3,8 +3,14 @@ import os
 import tempfile
 import unittest
 
+import json
+import urllib.error
+import urllib.request
+
+import params
 from protocol import Frame, FrameError, Value, crc16, parse_line
 from store import Store
+from web import STALE_SECONDS, build_payload, pick_reading, start_web_server
 
 TESTFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "..", "listener", "testfile.txt")
@@ -127,6 +133,85 @@ class StoreTest(unittest.TestCase):
         self.store.flush()
         self.assertEqual(self.rows("SELECT hour, kind, count FROM reader_stats"),
                          [(3600, "bad_crc", 2)])
+
+
+class FormatTest(unittest.TestCase):
+    def test_temperatures(self):
+        self.assertEqual(params.temp_tenths(0x0226), "55.0 °C")
+        self.assertEqual(params.temp_tenths(0xFFFB), "-0.5 °C")
+
+    def test_captured_values(self):
+        self.assertEqual(params.clock(0x1334), "19:52")
+        self.assertEqual(params.min_max(0x502D), "45–80 °C")
+        self.assertEqual(params.fuel_level(0x2C00), "22 %, 0 kg")
+        self.assertEqual(params.weekday(3), "Wednesday")
+
+    def test_unknown_codes_stay_visible(self):
+        self.assertEqual(params.state(0x09), "0x09")
+        self.assertEqual(params.pump_mode(9), "9")
+
+
+class WebTest(unittest.TestCase):
+    NOW = 1000.0
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.dir.name, "test.db"))
+
+    def tearDown(self):
+        self.store.db.close()
+        self.dir.cleanup()
+
+    def add(self, address, value, ts=NOW):
+        self.store.record_frame(Frame("U1", address, [Value(0, 0x157D, value)]), ts)
+
+    def boiler_reading(self, payload):
+        return next(r for r in payload["readings"]
+                    if r["group"] == "Boiler" and r["label"] == "Temperature")
+
+    def test_prefers_fff4(self):
+        self.add(0xFFFA, 500)
+        self.add(0xFFF4, 510)
+        payload = build_payload(self.store, self.NOW)
+        self.assertEqual(self.boiler_reading(payload)["text"], "51.0 °C")
+
+    def test_falls_back_when_fff4_is_stale(self):
+        self.add(0xFFF4, 510, self.NOW - STALE_SECONDS - 1)
+        self.add(0xFFFA, 500)
+        values = self.store.snapshot()[0]
+        self.assertEqual(pick_reading(values, 0, 0x157D, self.NOW)[0], 500)
+
+    def test_module_values_are_not_used_as_boiler_readings(self):
+        self.store.record_frame(Frame("U2", 0xFFF4, [Value(0, 0x157D, 999)]), self.NOW)
+        self.assertIsNone(self.boiler_reading(build_payload(self.store, self.NOW))["text"])
+
+    def test_payload_marks_age_and_keeps_unnamed_values(self):
+        self.store.record_frame(Frame("U1", 0xFFF4, [Value(0, 0x1581, 1)]), self.NOW - 5)
+        payload = build_payload(self.store, self.NOW)
+        self.assertEqual(payload["last_frame_age"], 5)
+        self.assertEqual(payload["raw"][0]["param"], "1581")
+        self.assertEqual(payload["raw"][0]["name"], "")
+
+    def test_no_data_yet(self):
+        payload = build_payload(self.store, self.NOW)
+        self.assertIsNone(payload["last_frame_age"])
+        self.assertTrue(all(r["text"] is None for r in payload["readings"]))
+
+    def test_http_routes(self):
+        self.add(0xFFF4, 510)
+        server = start_web_server(self.store, 0, "127.0.0.1")
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            with urllib.request.urlopen(base + "/") as response:
+                self.assertIn(b"Kotelna", response.read())
+            with urllib.request.urlopen(base + "/api/values") as response:
+                self.assertEqual(json.load(response)["raw"][0]["value"], 510)
+            with self.assertRaises(urllib.error.HTTPError) as caught:
+                urllib.request.urlopen(base + "/../reader.py")
+            self.assertEqual(caught.exception.code, 404)
+        finally:
+            server.shutdown()
+            server.server_close()
 
 
 if __name__ == "__main__":
