@@ -84,6 +84,14 @@ A **Kotelna** device then appears in Home Assistant through MQTT discovery. Each
 
 To remove the entities, stop the service and run `python3 ~/kotelna/mqtt_pub.py --remove`.
 
+### Dashboard
+
+`ha/dashboard.yaml` is a Home Assistant dashboard section. It shows four gauges, each with a temperature and its setpoint as a dot on the arc, and lists the other values in an entities card below.
+
+It needs the [Modern Circular Gauge](https://github.com/selvalt7/modern-circular-gauge) card, available through HACS, because the built-in gauge card can only mark fixed values. To use it, paste the file over a section's YAML in the dashboard editor.
+
+The setpoint's `min` and `max` must match the gauge's own, or the dot lands in the wrong place. On the boiler gauge, the arc turns orange from 80 °C and red from 85 °C, the limits in the EL-480 manual.
+
 ### Database
 
 - `current_values`: the latest value of every param
