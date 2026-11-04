@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+import os
+import tempfile
+import unittest
+
+from protocol import Frame, FrameError, Value, crc16, parse_line
+from store import Store
+
+TESTFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "listener", "testfile.txt")
+
+# Captured live from the EL-480 on 2026-11-04.
+LIVE_U1 = "45DE U1 (20): 0226 FFFA 0405 0000 0406 0000 0404 0000 0218 A5F3"
+LIVE_U2 = "6D61 U2 (17): 0226 0000 0405 00C8 0406 0000 0218 D978 00"
+LIVE_SELECTOR = ("6D2E U1 (44): 0226 FFF4 16F9 0001 1699 00F8 1581 0001 169A 00C8 178C 1E05 "
+                 "178D 00C8 178E 0000 0405 0000 16F9 0000 0218 4A48")
+
+
+class ProtocolTest(unittest.TestCase):
+    def assert_rejected(self, line, expected):
+        with self.assertRaises(FrameError) as caught:
+            parse_line(line)
+        self.assertEqual(str(caught.exception), expected)
+
+    def test_crc_of_empty_frame(self):
+        self.assertEqual(crc16(bytes.fromhex("0226FFF4")), 0xA1DE)
+
+    def test_boiler_frame(self):
+        frame = parse_line(LIVE_U1)
+        self.assertEqual(frame.source, "U1")
+        self.assertEqual(frame.address, 0xFFFA)
+        self.assertEqual(frame.values[0], Value(0, 0x0405, 0))
+
+    def test_module_frame_with_trailing_zero(self):
+        frame = parse_line(LIVE_U2)
+        self.assertEqual(frame, Frame("U2", 0, [Value(0, 0x0405, 200), Value(0, 0x0406, 0)]))
+
+    def test_selector_applies_to_following_values(self):
+        values = parse_line(LIVE_SELECTOR).values
+        self.assertIn(Value(1, 0x1699, 248), values)
+        self.assertTrue(all(v.param != 0x16F9 for v in values))
+
+    def test_selector_resets_for_values_after_it(self):
+        crc = crc16(bytes.fromhex("0226FFF416F90001167F002E16F90000157D0226"))
+        frame = parse_line(f"0000 U1 (24): 0226 FFF4 16F9 0001 167F 002E 16F9 0000 "
+                           f"157D 0226 0218 {crc:04X}")
+        self.assertEqual(frame.values, [Value(1, 0x167F, 46), Value(0, 0x157D, 550)])
+
+    def test_all_2017_boiler_frames_pass_and_garbled_replies_fail(self):
+        results = {"U1": [0, 0], "U2": [0, 0]}
+        with open(TESTFILE, errors="replace") as lines:
+            for line in lines:
+                source = "U1" if " U1 " in line else "U2" if " U2 " in line else None
+                if source is None:
+                    continue
+                try:
+                    parse_line(line)
+                    results[source][0] += 1
+                except FrameError:
+                    results[source][1] += 1
+        self.assertEqual(results["U1"], [332, 0])
+        self.assertEqual(results["U2"], [0, 332])
+
+    def test_rejects_changed_data(self):
+        self.assert_rejected(LIVE_U1.replace("0404 0000", "0404 0001"), "bad_crc")
+
+    def test_rejects_wrong_byte_count(self):
+        self.assert_rejected(LIVE_U1.replace("(20)", "(22)"), "bad_length")
+
+    def test_rejects_cut_off_line(self):
+        self.assert_rejected("0226 FFFA 0405", "unparsed")
+
+    def test_rejects_wrong_start(self):
+        self.assert_rejected("0000 U1 (8): 0227 FFF4 0218 A1DE", "bad_shape")
+
+    def test_rejects_block_frames(self):
+        crc = crc16(bytes.fromhex("0226FFF417880001"))
+        self.assert_rejected(f"0000 U1 (12): 0226 FFF4 1788 0001 0218 {crc:04X}", "block")
+
+
+class StoreTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.dir.name, "test.db")
+        self.store = Store(self.path)
+
+    def tearDown(self):
+        self.store.db.close()
+        self.dir.cleanup()
+
+    def frame(self, value):
+        return Frame("U1", 0xFFF4, [Value(0, 0x157D, value)])
+
+    def rows(self, sql):
+        return self.store.db.execute(sql).fetchall()
+
+    def test_history_only_records_changes(self):
+        self.store.record_frame(self.frame(500), 100.0)
+        self.store.record_frame(self.frame(500), 110.0)
+        self.store.record_frame(self.frame(510), 120.0)
+        self.store.flush()
+        self.assertEqual(self.rows("SELECT ts, value FROM value_changes ORDER BY ts"),
+                         [(100.0, 500), (120.0, 510)])
+        self.assertEqual(
+            self.rows("SELECT value, first_seen, last_seen, last_changed FROM current_values"),
+            [(510, 100.0, 120.0, 120.0)])
+
+    def test_restart_does_not_repeat_unchanged_values(self):
+        self.store.record_frame(self.frame(500), 100.0)
+        self.store.close()
+        self.store = Store(self.path)
+        self.store.record_frame(self.frame(500), 200.0)
+        self.store.flush()
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM value_changes"), [(1,)])
+        self.assertEqual(self.rows("SELECT last_seen FROM current_values"), [(200.0,)])
+
+    def test_same_param_is_separate_per_selector_and_source(self):
+        self.store.record_frame(Frame("U1", 1, [Value(1, 5, 10), Value(2, 5, 20)]), 1.0)
+        self.store.record_frame(Frame("U2", 1, [Value(1, 5, 30)]), 1.0)
+        self.store.flush()
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM current_values"), [(3,)])
+
+    def test_stats_add_up_across_flushes(self):
+        self.store.count("bad_crc", 3700.0)
+        self.store.flush()
+        self.store.count("bad_crc", 3710.0)
+        self.store.flush()
+        self.assertEqual(self.rows("SELECT hour, kind, count FROM reader_stats"),
+                         [(3600, "bad_crc", 2)])
+
+
+if __name__ == "__main__":
+    unittest.main()

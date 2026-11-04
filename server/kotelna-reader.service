@@ -1,0 +1,13 @@
+[Unit]
+Description=TECH EL-480 sniffer reader
+After=local-fs.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/kotelna
+ExecStart=/usr/bin/python3 /home/pi/kotelna/reader.py --db /home/pi/kotelna/kotelna.db
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
