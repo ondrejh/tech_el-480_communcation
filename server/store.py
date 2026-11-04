@@ -6,7 +6,7 @@ wear. A power cut can lose up to one flush interval of data.
 
 import sqlite3
 import threading
-from collections import Counter
+from collections import Counter, deque
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS current_values (
@@ -63,6 +63,7 @@ class Store:
         self.stats = Counter()
         self.totals = Counter()
         self.last_frame = None
+        self.recent_rejects = deque(maxlen=20)
         # The web server reads the current values from another thread.
         self.lock = threading.RLock()
 
@@ -88,6 +89,12 @@ class Store:
         with self.lock:
             self.stats[(int(ts // 3600) * 3600, kind)] += 1
             self.totals[kind] += 1
+
+    def reject(self, kind, line, ts):
+        """Count a rejected line and keep the latest few for diagnosis."""
+        with self.lock:
+            self.count(kind, ts)
+            self.recent_rejects.append({"ts": ts, "kind": kind, "line": line[:400]})
 
     def snapshot(self):
         """Return a consistent copy of the live state: (values, totals, last_frame)."""

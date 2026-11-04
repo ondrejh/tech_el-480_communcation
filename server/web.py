@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -54,6 +55,7 @@ def build_payload(store, now):
         "last_frame_age": now - last_frame if last_frame else None,
         "stale_seconds": STALE_SECONDS,
         "totals": totals,
+        "recent_rejects": list(store.recent_rejects),
         "readings": readings,
         "raw": raw,
     }
@@ -83,9 +85,17 @@ class Handler(BaseHTTPRequestHandler):
         pass  # one line every few seconds per open page would only fill the log
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        # A browser closing mid-request is normal, not worth a traceback in the log.
+        if not isinstance(sys.exc_info()[1], ConnectionError):
+            super().handle_error(request, client_address)
+
+
 def start_web_server(store, port, host="0.0.0.0"):
-    server = ThreadingHTTPServer((host, port), Handler)
-    server.daemon_threads = True
+    server = Server((host, port), Handler)
     server.store = store
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server

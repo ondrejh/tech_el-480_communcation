@@ -12,6 +12,7 @@ import time
 import tty
 
 from protocol import FrameError, parse_line
+from mqtt_pub import DEFAULT_CONFIG, start_mqtt
 from store import Store
 from web import start_web_server
 
@@ -37,12 +38,11 @@ def open_port(device):
 
 def handle_line(store, line):
     now = time.time()
+    text = line.decode("ascii", "replace")
     try:
-        store.record_frame(parse_line(line.decode("ascii")), now)
-    except UnicodeDecodeError:
-        store.count("unparsed", now)
+        store.record_frame(parse_line(text), now)
     except FrameError as error:
-        store.count(str(error), now)
+        store.reject(str(error), text, now)
 
 
 def read_port(fd, store, flush_interval, should_stop):
@@ -78,6 +78,7 @@ def main():
     parser.add_argument("--flush-interval", type=float, default=60.0,
                         help="seconds between database writes")
     parser.add_argument("--web-port", type=int, default=8080)
+    parser.add_argument("--mqtt-config", default=DEFAULT_CONFIG)
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -89,6 +90,7 @@ def main():
     store = Store(args.db)
     start_web_server(store, args.web_port)
     log.info("web page on port %d", args.web_port)
+    publisher = start_mqtt(store, args.mqtt_config)
     try:
         while not stop:
             try:
@@ -105,6 +107,8 @@ def main():
             finally:
                 os.close(fd)
     finally:
+        if publisher:
+            publisher.stop()
         store.close()
         log.info("stopped")
 

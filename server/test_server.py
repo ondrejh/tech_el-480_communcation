@@ -10,6 +10,9 @@ import urllib.request
 import params
 from protocol import Frame, FrameError, Value, crc16, parse_line
 from store import Store
+from mqtt_pub import (AVAILABILITY_TOPIC, HA_STATUS_TOPIC, MqttPublisher,
+                      discovery_payload, discovery_topic, state_topic)
+from reader import handle_line
 from web import STALE_SECONDS, build_payload, pick_reading, start_web_server
 
 TESTFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -212,6 +215,135 @@ class WebTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+
+
+class RejectTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.dir.name, "test.db"))
+
+    def tearDown(self):
+        self.store.db.close()
+        self.dir.cleanup()
+
+    def test_rejected_lines_are_kept_for_diagnosis(self):
+        handle_line(self.store, b"0000 U1 (8): 0227 FFF4 0218 A1DE\r")
+        handle_line(self.store, b"\xff\xfe garbage")
+        self.assertEqual(self.store.totals, {"bad_shape": 1, "unparsed": 1})
+        self.assertEqual([r["kind"] for r in self.store.recent_rejects], ["bad_shape", "unparsed"])
+        self.assertIn("0227", self.store.recent_rejects[0]["line"])
+
+    def test_good_lines_are_not_rejects(self):
+        handle_line(self.store, LIVE_U1.encode() + b"\r")
+        self.assertEqual(len(self.store.recent_rejects), 0)
+        self.assertEqual(self.store.totals, {"ok_U1": 1})
+
+
+class FakeClient:
+    def __init__(self):
+        self.connected = True
+        self.published = []
+        self.subscribed = []
+
+    def is_connected(self):
+        return self.connected
+
+    def publish(self, topic, payload, qos=0, retain=False):
+        self.published.append((topic, payload, retain))
+
+    def subscribe(self, topic):
+        self.subscribed.append(topic)
+
+
+class FakeReason:
+    is_failure = False
+
+
+class FakeMessage:
+    topic = HA_STATUS_TOPIC
+    payload = b"online"
+
+
+class MqttTest(unittest.TestCase):
+    NOW = 1000.0
+    BOILER = next(e for e in params.MQTT_ENTITIES if e.key == "boiler_temperature")
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.dir.name, "test.db"))
+        self.client = FakeClient()
+        self.publisher = MqttPublisher(self.store, self.client)
+        self.publisher.on_connect(self.client, None, None, FakeReason(), None)
+
+    def tearDown(self):
+        self.store.db.close()
+        self.dir.cleanup()
+
+    def add(self, value, ts=NOW):
+        self.store.record_frame(Frame("U1", 0xFFF4, [Value(0, 0x157D, value)]), ts)
+
+    def states(self):
+        return [p for p in self.client.published if p[0] == state_topic(self.BOILER)]
+
+    def test_discovery_is_retained_and_describes_entity(self):
+        self.publisher.publish_once(self.NOW)
+        topic = discovery_topic(self.BOILER)
+        self.assertEqual(topic, "homeassistant/sensor/kotelna/boiler_temperature/config")
+        message = next(p for p in self.client.published if p[0] == topic)
+        self.assertTrue(message[2])
+        config = json.loads(message[1])
+        self.assertEqual(config["unit_of_measurement"], "°C")
+        self.assertEqual(config["availability_topic"], AVAILABILITY_TOPIC)
+        self.assertEqual(config["device"]["name"], "Kotelna")
+
+    def test_unique_ids_are_unique(self):
+        ids = [discovery_payload(e)["unique_id"] for e in params.MQTT_ENTITIES]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_values_publish_only_when_changed(self):
+        self.add(540)
+        self.publisher.publish_once(self.NOW)
+        self.add(540)
+        self.publisher.publish_once(self.NOW)
+        self.add(550)
+        self.publisher.publish_once(self.NOW)
+        self.assertEqual([s[1] for s in self.states()], ["54.0", "55.0"])
+
+    def test_goes_offline_when_boiler_data_stops(self):
+        self.add(540)
+        self.publisher.publish_once(self.NOW)
+        self.publisher.publish_once(self.NOW + STALE_SECONDS + 1)
+        availability = [p[1] for p in self.client.published if p[0] == AVAILABILITY_TOPIC]
+        self.assertEqual(availability, ["online", "offline"])
+
+    def test_stays_offline_with_no_data_at_all(self):
+        self.publisher.publish_once(self.NOW)
+        self.assertEqual([p[1] for p in self.client.published if p[0] == AVAILABILITY_TOPIC],
+                         ["offline"])
+        self.assertEqual(self.states(), [])
+
+    def test_publishes_nothing_while_disconnected(self):
+        self.add(540)
+        self.client.connected = False
+        self.publisher.publish_once(self.NOW)
+        self.assertEqual(self.client.published, [])
+
+    def test_home_assistant_restart_resends_everything(self):
+        self.add(540)
+        self.publisher.publish_once(self.NOW)
+        self.client.published.clear()
+        self.publisher.on_message(self.client, None, FakeMessage())
+        self.publisher.publish_once(self.NOW)
+        self.assertEqual(len(self.states()), 1)
+        self.assertTrue(any(p[0] == discovery_topic(self.BOILER) for p in self.client.published))
+
+    def test_reconnect_subscribes_to_home_assistant_status(self):
+        self.assertEqual(self.client.subscribed, [HA_STATUS_TOPIC])
+
+    def test_binary_and_negative_payloads(self):
+        self.assertEqual(params.binary_payload(1), "ON")
+        self.assertEqual(params.binary_payload(0), "OFF")
+        self.assertEqual(params.tenths_number(0xFFFB), -0.5)
 
 
 if __name__ == "__main__":

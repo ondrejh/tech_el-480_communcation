@@ -102,6 +102,46 @@ READINGS = (
     Reading("Controller", "Fuel time", 0, 0x16F2, hours),
 )
 
+
+
+def tenths_number(value):
+    return signed(value) / 10
+
+
+def binary_payload(value):
+    return "ON" if value else "OFF"
+
+
+MqttEntity = namedtuple("MqttEntity", "key name component selector param convert extras")
+
+_TEMPERATURE = {"device_class": "temperature", "unit_of_measurement": "°C",
+                "state_class": "measurement"}
+_PERCENT = {"unit_of_measurement": "%", "state_class": "measurement"}
+_RUNNING = {"device_class": "running"}
+
+# Fuel level and the unknown params stay out until they're understood.
+MQTT_ENTITIES = (
+    MqttEntity("boiler_temperature", "Boiler temperature", "sensor", 0, 0x157D, tenths_number, _TEMPERATURE),
+    MqttEntity("boiler_setpoint", "Boiler setpoint", "sensor", 0, 0x157E, int, _TEMPERATURE),
+    MqttEntity("flue_temperature", "Flue gas temperature", "sensor", 0, 0x15B7, tenths_number, _TEMPERATURE),
+    MqttEntity("feeder_temperature", "Feeder temperature", "sensor", 0, 0x16F8, tenths_number, _TEMPERATURE),
+    MqttEntity("hot_water_temperature", "Hot water temperature", "sensor", 0, 0x166E, tenths_number, _TEMPERATURE),
+    MqttEntity("hot_water_setpoint", "Hot water setpoint", "sensor", 0, 0x1616, int, _TEMPERATURE),
+    MqttEntity("room_temperature", "Room temperature", "sensor", 1, 0x1699, tenths_number, _TEMPERATURE),
+    MqttEntity("room_setpoint", "Room setpoint", "sensor", 1, 0x169A, tenths_number, _TEMPERATURE),
+    MqttEntity("outside_temperature", "Outside temperature", "sensor", 0, 0x1681, tenths_number, _TEMPERATURE),
+    MqttEntity("valve_temperature", "Valve temperature", "sensor", 1, 0x1614, tenths_number, _TEMPERATURE),
+    MqttEntity("valve_setpoint", "Valve setpoint", "sensor", 1, 0x167F, int, _TEMPERATURE),
+    MqttEntity("valve_open", "Valve open", "sensor", 1, 0x15AC, int, _PERCENT),
+    MqttEntity("fan_power", "Fan power", "sensor", 0, 0x159B, int, _PERCENT),
+    MqttEntity("boiler_state", "Boiler state", "sensor", 0, 0x157C, state, {}),
+    MqttEntity("pump_mode", "Pump mode", "sensor", 0, 0x15CD, pump_mode, {}),
+    MqttEntity("fan", "Fan", "binary_sensor", 0, 0x1588, binary_payload, _RUNNING),
+    MqttEntity("feeder", "Feeder", "binary_sensor", 0, 0x1587, binary_payload, _RUNNING),
+    MqttEntity("heating_pump", "Heating pump", "binary_sensor", 0, 0x1589, binary_payload, _RUNNING),
+    MqttEntity("hot_water_pump", "Hot water pump", "binary_sensor", 0, 0x158B, binary_payload, _RUNNING),
+)
+
 # Names for the raw table, including params not shown as readings.
 PARAM_NAMES = {
     0x01F6: "Boiler setpoint (from module)",
