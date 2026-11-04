@@ -146,7 +146,7 @@ class FormatTest(unittest.TestCase):
     def test_captured_values(self):
         self.assertEqual(params.clock(0x1334), "19:52")
         self.assertEqual(params.min_max(0x502D), "45–80 °C")
-        self.assertEqual(params.fuel_level(0x2C00), "22 %, 0 kg")
+        self.assertEqual(params.fuel_level(0x2C00), "22 %")
         self.assertEqual(params.weekday(3), "Wednesday")
 
     def test_unknown_codes_stay_visible(self):
@@ -344,6 +344,7 @@ class MqttTest(unittest.TestCase):
         self.assertEqual(params.binary_payload(1), "ON")
         self.assertEqual(params.binary_payload(0), "OFF")
         self.assertEqual(params.tenths_number(0xFFFB), -0.5)
+        self.assertEqual(params.fuel_percent(0x2C00), 22)
 
 
 if __name__ == "__main__":

@@ -60,7 +60,8 @@ def pump_mode(value):
 
 
 def fuel_level(value):
-    return f"{value >> 9} %, {value & 0x1FF} kg"
+    # The low 9 bits seem to be kg, but they've always read 0 here.
+    return f"{value >> 9} %"
 
 
 def hours(value):
@@ -108,6 +109,10 @@ def tenths_number(value):
     return signed(value) / 10
 
 
+def fuel_percent(value):
+    return value >> 9
+
+
 def binary_payload(value):
     return "ON" if value else "OFF"
 
@@ -119,7 +124,7 @@ _TEMPERATURE = {"device_class": "temperature", "unit_of_measurement": "°C",
 _PERCENT = {"unit_of_measurement": "%", "state_class": "measurement"}
 _RUNNING = {"device_class": "running"}
 
-# Fuel level and the unknown params stay out until they're understood.
+# Unknown params stay out until they're understood.
 MQTT_ENTITIES = (
     MqttEntity("boiler_temperature", "Boiler temperature", "sensor", 0, 0x157D, tenths_number, _TEMPERATURE),
     MqttEntity("boiler_setpoint", "Boiler setpoint", "sensor", 0, 0x157E, int, _TEMPERATURE),
@@ -134,6 +139,7 @@ MQTT_ENTITIES = (
     MqttEntity("valve_setpoint", "Valve setpoint", "sensor", 1, 0x167F, int, _TEMPERATURE),
     MqttEntity("valve_open", "Valve open", "sensor", 1, 0x15AC, int, _PERCENT),
     MqttEntity("fan_power", "Fan power", "sensor", 0, 0x159B, int, _PERCENT),
+    MqttEntity("fuel_level", "Fuel level", "sensor", 0, 0x16F1, fuel_percent, _PERCENT),
     MqttEntity("boiler_state", "Boiler state", "sensor", 0, 0x157C, state, {}),
     MqttEntity("pump_mode", "Pump mode", "sensor", 0, 0x15CD, pump_mode, {}),
     MqttEntity("fan", "Fan", "binary_sensor", 0, 0x1588, binary_payload, _RUNNING),
