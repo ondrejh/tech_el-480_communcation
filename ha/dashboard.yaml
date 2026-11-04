@@ -46,7 +46,7 @@ cards:
             min: 20
             max: 70
         - type: custom:modern-circular-gauge
-          name: Pokojový termostat
+          name: Termostat
           entity: sensor.kotelna_room_temperature
           min: 15
           max: 30
@@ -56,7 +56,7 @@ cards:
             min: 15
             max: 30
         - type: custom:modern-circular-gauge
-          name: Hlavní ventil
+          name: Ventil
           entity: sensor.kotelna_valve_temperature
           min: 20
           max: 70
