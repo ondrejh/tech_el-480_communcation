@@ -123,3 +123,8 @@ Writes are batched once a minute to limit SD card wear, so a power cut can lose 
     cd server && python3 -m unittest test_server
 
 No boiler needed. The tests also use the 2017 captures in `listener/testfile.txt`.
+
+# ToDo
+
+- [ ] capture communication without ethernet module
+- [ ] create better hw (omit tiva mcu)
