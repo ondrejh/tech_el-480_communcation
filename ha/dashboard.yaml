@@ -1,81 +1,195 @@
-type: grid
+type: vertical-stack
+title: 🔥 Kotel
+grid_options:
+  columns: full
 cards:
-  - type: vertical-stack
-    grid_options:
-      columns: full
+  - type: grid
+    visibility:
+      - condition: state
+        entity: sensor.kotelna_boiler_state
+        state_not: unavailable
+    columns: 4
+    square: false
     cards:
-    - type: grid
-      title: 🔥 Kotel
-      columns: 2
-      square: false
-      cards:
-        - type: custom:modern-circular-gauge
-          name: Kotel
-          entity: sensor.kotelna_boiler_temperature
+      - type: custom:modern-circular-gauge
+        name: Palivo
+        header_position: top
+        entity: sensor.kotelna_fuel_level
+        min: 0
+        max: 100
+        icon: mdi:silo
+        segments:
+          - from: 0
+            color:
+              - 244
+              - 67
+              - 54
+          - from: 10
+            color:
+              - 255
+              - 152
+              - 0
+          - from: 30
+            color:
+              - 76
+              - 175
+              - 80
+      - type: custom:modern-circular-gauge
+        name: Spaliny
+        header_position: top
+        entity: sensor.kotelna_flue_gas_temperature
+        min: 0
+        max: 350
+        segments:
+          - from: 0
+            color:
+              - 3
+              - 169
+              - 244
+          - from: 60
+            color:
+              - 76
+              - 175
+              - 80
+          - from: 120
+            color:
+              - 255
+              - 152
+              - 0
+          - from: 250
+            color:
+              - 244
+              - 67
+              - 54
+      - type: custom:modern-circular-gauge
+        name: Ventilátor
+        header_position: top
+        entity: sensor.kotelna_fan_power
+        min: 0
+        max: 100
+        icon: mdi:fan
+        secondary: >-
+          {% if is_state("binary_sensor.kotelna_fan", "on") %}Běží{% else
+          %}Stojí{% endif %}
+      - type: custom:modern-circular-gauge
+        name: Podavač
+        header_position: top
+        entity: sensor.kotelna_feeder_temperature
+        min: 0
+        max: 100
+        segments:
+          - from: 0
+            color:
+              - 3
+              - 169
+              - 244
+          - from: 50
+            color:
+              - 244
+              - 67
+              - 54
+        icon: mdi:screw-lag
+        secondary: >-
+          {% if is_state("binary_sensor.kotelna_feeder", "on") %}Běží{% else
+          %}Stojí{% endif %}
+  - type: grid
+    visibility:
+      - condition: state
+        entity: sensor.kotelna_boiler_state
+        state_not: unavailable
+    columns: 2
+    square: false
+    cards:
+      - type: custom:modern-circular-gauge
+        name: Kotel
+        entity: sensor.kotelna_boiler_temperature
+        min: 30
+        max: 90
+        tertiary:
+          entity: sensor.kotelna_boiler_setpoint
+          show_gauge: outer
           min: 30
           max: 90
-          secondary:
-            entity: sensor.kotelna_boiler_setpoint
-            show_gauge: outer
-            min: 30
-            max: 90
-          segments:
-            - from: 30
-              color:
-                - 3
-                - 169
-                - 244
-            - from: 80
-              color:
-                - 255
-                - 152
-                - 0
-            - from: 85
-              color:
-                - 244
-                - 67
-                - 54
-        - type: custom:modern-circular-gauge
-          name: Boiler
-          entity: sensor.kotelna_hot_water_temperature
+        secondary: >-
+          {% if is_state("binary_sensor.kotelna_heating_pump", "on") %}Čerp.
+          běží{% else %}Čerp. stojí{% endif %}
+        segments:
+          - from: 30
+            color:
+              - 3
+              - 169
+              - 244
+          - from: 80
+            color:
+              - 255
+              - 152
+              - 0
+          - from: 85
+            color:
+              - 244
+              - 67
+              - 54
+      - type: custom:modern-circular-gauge
+        name: Boiler
+        entity: sensor.kotelna_hot_water_temperature
+        min: 20
+        max: 70
+        tertiary:
+          entity: sensor.kotelna_hot_water_setpoint
+          show_gauge: outer
           min: 20
           max: 70
-          secondary:
-            entity: sensor.kotelna_hot_water_setpoint
-            show_gauge: outer
-            min: 20
-            max: 70
-        - type: custom:modern-circular-gauge
-          name: Termostat
-          entity: sensor.kotelna_room_temperature
+        secondary: >-
+          {% if is_state("binary_sensor.kotelna_hot_water_pump", "on") %}Čerp.
+          běží{% else %}Čerp. stojí{% endif %}
+      - type: custom:modern-circular-gauge
+        name: Termostat
+        entity: sensor.kotelna_room_temperature
+        min: 15
+        max: 30
+        tertiary:
+          entity: sensor.kotelna_room_setpoint
+          show_gauge: outer
           min: 15
           max: 30
-          secondary:
-            entity: sensor.kotelna_room_setpoint
-            show_gauge: outer
-            min: 15
-            max: 30
-        - type: custom:modern-circular-gauge
-          name: Ventil
-          entity: sensor.kotelna_valve_temperature
+        secondary:
+          entity: sensor.kotelna_outside_temperature
+      - type: custom:modern-circular-gauge
+        name: Ventil
+        entity: sensor.kotelna_valve_temperature
+        min: 20
+        max: 70
+        tertiary:
+          entity: sensor.kotelna_valve_setpoint
+          show_gauge: outer
           min: 20
           max: 70
-          secondary:
-            entity: sensor.kotelna_valve_setpoint
-            show_gauge: outer
-            min: 20
-            max: 70
-    - type: entities
-      entities:
-        - entity: sensor.kotelna_boiler_state
-        - entity: binary_sensor.kotelna_fan
-        - entity: sensor.kotelna_fan_power
-        - entity: binary_sensor.kotelna_feeder
-        - entity: sensor.kotelna_feeder_temperature
-        - entity: sensor.kotelna_flue_gas_temperature
-        - entity: sensor.kotelna_fuel_level
-        - entity: binary_sensor.kotelna_heating_pump
-        - entity: binary_sensor.kotelna_hot_water_pump
-        - entity: sensor.kotelna_outside_temperature
-        - entity: sensor.kotelna_pump_mode
-        - entity: sensor.kotelna_valve_open
+        secondary:
+          entity: sensor.kotelna_valve_open
+  - type: markdown
+    visibility:
+      - condition: state
+        entity: sensor.kotelna_boiler_state
+        state_not: unavailable
+    content: >-
+      {%- set m = states("sensor.kotelna_pump_mode") -%}
+
+      {%- set modes = {"House heating": "Vytápění domu", "Boiler priority":
+      "Priorita bojleru", "Parallel pumps": "Paralelní čerpadla", "Summer":
+      "Léto"} -%}
+
+      {%- set s = states("sensor.kotelna_boiler_state") -%}
+
+      {%- set states = {"Working": "Provoz", "Sustain": "Udržování",
+      "Supervision": "Dohled"} -%}
+
+      **Stav:** {{ states.get(s.split(" (")[0], s) }}
+
+      **Režim:** {{ modes.get(m, m)}}
+  - type: markdown
+    visibility:
+      - condition: state
+        entity: sensor.kotelna_boiler_state
+        state: unavailable
+    content: '# Chyba komunikace !!!'
+

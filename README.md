@@ -96,9 +96,15 @@ To remove the entities, stop the service and run `python3 ~/kotelna/mqtt_pub.py 
 
 ### Dashboard
 
-`ha/dashboard.yaml` is a Home Assistant dashboard section. It shows four gauges, each with a temperature and its setpoint as a dot on the arc, and lists the other values in an entities card below.
+`ha/dashboard.yaml` is a Home Assistant dashboard card with Czech labels.
 
-It needs the [Modern Circular Gauge](https://github.com/selvalt7/modern-circular-gauge) card, available through HACS, because the built-in gauge card can only mark fixed values. To use it, paste the file over a section's YAML in the dashboard editor.
+![Home Assistant dashboard](/ha/dashboard.png)
+
+The top row has four small gauges: fuel level, flue gas temperature, fan power and feeder temperature, with the fan and feeder on/off state under the last two. Below are four large gauges, for the boiler, hot water, room and valve temperatures, each with its setpoint above the temperature and as a dot on the arc. The text under the temperature is the pump state on the boiler and hot water gauges, the outside temperature on the room gauge, and the valve opening on the valve gauge. A text card at the bottom shows the boiler state and pump mode.
+
+When `kotelna/availability` goes `offline`, all of this is replaced by a communication error message under the title. The cards check this through `sensor.kotelna_boiler_state`, which becomes `unavailable`.
+
+It needs the [Modern Circular Gauge](https://github.com/selvalt7/modern-circular-gauge) card, available through HACS, because the built-in gauge card can only mark fixed values. To use it, add a manual card in the dashboard editor and paste the file over its YAML.
 
 The setpoint's `min` and `max` must match the gauge's own, or the dot lands in the wrong place. On the boiler gauge, the arc turns orange from 80 °C and red from 85 °C, the limits in the EL-480 manual.
 
