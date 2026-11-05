@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "conv-rescue") (type "Legacy") (uri "${KIPRJMOD}/conv-rescue.lib") (options "") (descr ""))
+)
