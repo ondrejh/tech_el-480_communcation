@@ -104,6 +104,8 @@ The top row has four small gauges: fuel level, flue gas temperature, fan power a
 
 When `kotelna/availability` goes `offline`, all of this is replaced by a communication error message under the title. The cards check this through `sensor.kotelna_boiler_state`, which becomes `unavailable`.
 
+![Home Assistant dashboard with the communication error](/ha/dashboard_error.png)
+
 It needs the [Modern Circular Gauge](https://github.com/selvalt7/modern-circular-gauge) card, available through HACS, because the built-in gauge card can only mark fixed values. To use it, add a manual card in the dashboard editor and paste the file over its YAML.
 
 The setpoint's `min` and `max` must match the gauge's own, or the dot lands in the wrong place. On the boiler gauge, the arc turns orange from 80 °C and red from 85 °C, the limits in the EL-480 manual.
